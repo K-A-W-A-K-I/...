@@ -1,0 +1,668 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Daily Fuel Log</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #14171a;
+    --card: #1c2024;
+    --card-hover: #212529;
+    --line: #2a2f35;
+    --text: #edeff1;
+    --muted: #8b939b;
+    --faint: #565d64;
+    --lime: #c8ff3d;
+    --lime-dim: #7c9c2b;
+    --amber: #ffb020;
+    --amber-dim: #8f6318;
+    --danger: #ff6b6b;
+    --radius: 14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding-bottom: 60px;
+  }
+  .wrap{
+    max-width: 640px;
+    margin: 0 auto;
+    padding: 0 16px;
+  }
+
+  /* ---------- Scoreboard ---------- */
+  .scoreboard{
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: linear-gradient(180deg, var(--bg) 80%, transparent);
+    padding: 18px 0 10px;
+  }
+  .board-card{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 16px 18px;
+  }
+  .board-top{
+    display:flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 14px;
+  }
+  .day-label{
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    font-size: 20px;
+    letter-spacing: -0.01em;
+  }
+  .date-sub{
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  .streak{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    color: var(--amber);
+    background: rgba(255,176,32,0.1);
+    border: 1px solid rgba(255,176,32,0.25);
+    border-radius: 999px;
+    padding: 4px 10px 4px 8px;
+    white-space: nowrap;
+  }
+  .metrics{
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 14px;
+  }
+  .metric-label{
+    display:flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .metric-val{
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: 700;
+    color: var(--text);
+    font-size: 12px;
+  }
+  .bar-track{
+    height: 8px;
+    border-radius: 999px;
+    background: #0f1113;
+    overflow: hidden;
+    border: 1px solid var(--line);
+  }
+  .bar-fill{
+    height: 100%;
+    border-radius: 999px;
+    transition: width 0.4s cubic-bezier(.2,.8,.2,1);
+  }
+  .bar-fill.cal{ background: linear-gradient(90deg, var(--lime-dim), var(--lime)); }
+  .bar-fill.pro{ background: linear-gradient(90deg, var(--amber-dim), var(--amber)); }
+
+  .reset-btn{
+    margin-top: 14px;
+    width: 100%;
+    background: transparent;
+    border: 1px solid var(--line);
+    color: var(--muted);
+    font-family: 'Inter', sans-serif;
+    font-size: 12px;
+    padding: 8px;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  .reset-btn:hover{ border-color: var(--danger); color: var(--danger); }
+
+  /* ---------- Meal cards ---------- */
+  .meals{
+    display:flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 18px;
+  }
+  .meal{
+    background: var(--card);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .meal.done{
+    border-color: var(--lime-dim);
+  }
+  .meal-head{
+    display:flex;
+    align-items:center;
+    gap: 12px;
+    padding: 14px 16px;
+    cursor: pointer;
+  }
+  .check{
+    flex: none;
+    width: 26px;
+    height: 26px;
+    border-radius: 8px;
+    border: 2px solid var(--faint);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    transition: all 0.15s;
+    background: transparent;
+  }
+  .meal.done .check{
+    background: var(--lime);
+    border-color: var(--lime);
+  }
+  .check svg{ width:14px; height:14px; opacity:0; transition: opacity 0.15s; }
+  .meal.done .check svg{ opacity:1; }
+
+  .meal-title-wrap{ flex: 1; min-width:0; }
+  .meal-eyebrow{
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    margin-bottom: 2px;
+  }
+  .meal-title{
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 16px;
+  }
+  .meal-macro{
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+    color: var(--muted);
+    flex: none;
+    text-align: right;
+  }
+  .meal-macro b{ color: var(--text); }
+  .chevron{
+    flex: none;
+    width: 18px; height: 18px;
+    color: var(--faint);
+    transition: transform 0.2s;
+  }
+  .meal.open .chevron{ transform: rotate(180deg); }
+
+  .meal-body{
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+  }
+  .meal.open .meal-body{ max-height: 800px; }
+  .meal-body-inner{
+    padding: 0 16px 16px;
+    border-top: 1px solid var(--line);
+    margin-top: -1px;
+    padding-top: 14px;
+  }
+  .base-items{
+    font-size: 13.5px;
+    line-height: 1.6;
+    color: var(--text);
+    margin: 0 0 12px;
+    padding-left: 18px;
+  }
+  .base-items li{ margin-bottom: 2px; }
+
+  .swap-group{
+    margin-bottom: 12px;
+  }
+  .swap-label{
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-bottom: 6px;
+  }
+  select.swap-select{
+    width: 100%;
+    background: #14171a;
+    color: var(--text);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 9px 10px;
+    font-family: 'Inter', sans-serif;
+    font-size: 13px;
+    appearance: none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='%238b939b'><path d='M5.5 7.5L10 12l4.5-4.5'/></svg>");
+    background-repeat: no-repeat;
+    background-position: right 10px center;
+    background-size: 16px;
+  }
+  select.swap-select:focus{ outline: 2px solid var(--lime); outline-offset: 1px; }
+
+  .picked-note{
+    font-size: 12px;
+    color: var(--lime);
+    margin-top: 6px;
+    display:none;
+  }
+  .picked-note.show{ display:block; }
+
+  footer{
+    text-align:center;
+    color: var(--faint);
+    font-size: 11px;
+    margin-top: 28px;
+  }
+
+  .toast{
+    position: fixed;
+    bottom: 18px;
+    left: 50%;
+    transform: translateX(-50%) translateY(10px);
+    background: #22262a;
+    border: 1px solid var(--line);
+    color: var(--text);
+    padding: 9px 16px;
+    border-radius: 999px;
+    font-size: 12px;
+    opacity: 0;
+    pointer-events: none;
+    transition: all 0.25s;
+  }
+  .toast.show{ opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  :focus-visible{ outline: 2px solid var(--lime); outline-offset: 2px; }
+
+  @media (max-width: 400px){
+    .metrics{ gap: 10px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="scoreboard">
+    <div class="board-card">
+      <div class="board-top">
+        <div>
+          <div class="day-label">Today's Log</div>
+          <div class="date-sub" id="dateSub">—</div>
+        </div>
+        <div class="streak" id="streakBadge">🔥 0 day streak</div>
+      </div>
+      <div class="metrics">
+        <div>
+          <div class="metric-label"><span>Calories</span><span class="metric-val" id="calVal">0 / 1850</span></div>
+          <div class="bar-track"><div class="bar-fill cal" id="calBar" style="width:0%"></div></div>
+        </div>
+        <div>
+          <div class="metric-label"><span>Protein</span><span class="metric-val" id="proVal">0 / 159g</span></div>
+          <div class="bar-track"><div class="bar-fill pro" id="proBar" style="width:0%"></div></div>
+        </div>
+      </div>
+      <button class="reset-btn" id="resetBtn">Reset today's log</button>
+    </div>
+  </div>
+
+  <div class="meals" id="mealsList"></div>
+
+  <footer>Tap a meal to log it and pick substitutions · saved automatically</footer>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const MEALS = [
+  {
+    id: 'breakfast',
+    eyebrow: 'Morning',
+    icon: '🌅',
+    title: 'Breakfast',
+    calories: 400,
+    protein: 30,
+    base: [
+      '3 whole boiled eggs',
+      '1 cup plain yogurt (no added sugar)',
+      'Small handful (20g) raw almonds or walnuts'
+    ],
+    swaps: [
+      {
+        label: 'Swap eggs & yogurt for',
+        options: [
+          'Keep as is',
+          '150g light Tunisian ricotta (low-fat)',
+          '100g cottage cheese'
+        ]
+      },
+      {
+        label: 'Swap nuts for',
+        options: [
+          'Keep as is',
+          '1 tbsp peanut butter (no added sugar)',
+          '1 tbsp olive oil drizzled over the cheese'
+        ]
+      }
+    ]
+  },
+  {
+    id: 'lunch',
+    eyebrow: 'Midday',
+    icon: '☀️',
+    title: 'Lunch',
+    calories: 500,
+    protein: 45,
+    base: [
+      '150g grilled chicken escalope',
+      '100g cooked yellow rice',
+      'Large green salad (1 tsp olive oil)'
+    ],
+    swaps: [
+      {
+        label: 'Swap rice for (pick one per day)',
+        options: [
+          'Keep as is',
+          '150g boiled potato with cumin',
+          '120g steamed bulgur or jari with vegetables',
+          '100g steamed whole-wheat couscous, no added fat',
+          '100g whole-wheat pasta, boiled'
+        ]
+      },
+      {
+        label: 'Swap chicken for',
+        options: [
+          'Keep as is',
+          '150g grilled fish (sea bass, bream, or grilled sardines)',
+          '150g lean beef'
+        ]
+      }
+    ]
+  },
+  {
+    id: 'postworkout',
+    eyebrow: 'Post-Workout',
+    icon: '🏋️',
+    title: 'Post-Workout Meal',
+    calories: 530,
+    protein: 52,
+    base: [
+      '100g grilled chicken escalope',
+      '2 whole boiled eggs',
+      '2 egg whites only (discard yolks to cut fat)',
+      '100g yellow rice'
+    ],
+    swaps: [
+      {
+        label: 'Swap rice for',
+        options: [
+          'Keep as is',
+          '150g roasted sweet potato',
+          '150g boiled potato',
+          '120g steamed bulgur with vegetables',
+          '100g whole-wheat couscous, no added fat'
+        ]
+      },
+      {
+        label: 'Too tired to cook? Swap eggs & chicken for',
+        options: [
+          'Keep as is',
+          '1.5 cans tuna in water, drained (same amount of carbs on the side)'
+        ]
+      }
+    ]
+  },
+  {
+    id: 'dinner',
+    eyebrow: 'Evening · light & slow-digesting',
+    icon: '🌙',
+    title: 'Dinner',
+    calories: 420,
+    protein: 32,
+    base: [
+      '1 can tuna in water (120g)',
+      'Grilled salad plate (½ tsp olive oil only)',
+      '¼ baguette (about 60g)'
+    ],
+    swaps: [
+      {
+        label: 'Swap white baguette for',
+        options: [
+          'Keep as is',
+          'Half whole-wheat tabouna bread',
+          '2 slices whole-wheat toast bread',
+          '120g boiled potato (bread replaced entirely)'
+        ]
+      },
+      {
+        label: 'Swap tuna for',
+        options: [
+          'Keep as is',
+          '150g grilled chicken escalope',
+          '150g light cheese (slow-digesting — good before bed)'
+        ]
+      }
+    ]
+  }
+];
+
+const TARGET_CAL = MEALS.reduce((s,m)=>s+m.calories,0);
+const TARGET_PRO = MEALS.reduce((s,m)=>s+m.protein,0);
+
+function todayKey(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,'0');
+  const day = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${day}`;
+}
+
+function fmtDateLabel(dateStr){
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+let state = {}; // { mealId: { done: bool, swaps: [choiceIndex,...] } }
+const dayKey = todayKey();
+const storageKey = `day:${dayKey}`;
+
+function defaultState(){
+  const s = {};
+  MEALS.forEach(m => {
+    s[m.id] = { done: false, swaps: m.swaps.map(()=>0) };
+  });
+  return s;
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(showToast._t);
+  showToast._t = setTimeout(()=> t.classList.remove('show'), 1600);
+}
+
+async function loadState(){
+  try{
+    const res = await window.storage.get(storageKey, false);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      // merge with defaults in case meal list changed
+      const merged = defaultState();
+      Object.keys(merged).forEach(id => {
+        if(parsed[id]){
+          merged[id].done = !!parsed[id].done;
+          if(Array.isArray(parsed[id].swaps)){
+            merged[id].swaps = merged[id].swaps.map((v,i)=> parsed[id].swaps[i] ?? 0);
+          }
+        }
+      });
+      state = merged;
+    } else {
+      state = defaultState();
+    }
+  } catch(e){
+    state = defaultState();
+  }
+}
+
+async function saveState(){
+  try{
+    await window.storage.set(storageKey, JSON.stringify(state), false);
+  } catch(e){
+    showToast("Couldn't save — try again");
+  }
+}
+
+async function computeStreak(){
+  try{
+    const list = await window.storage.list('day:', false);
+    if(!list || !list.keys) return 0;
+    const keys = list.keys.slice().sort().reverse(); // newest first
+    let streak = 0;
+    let cursor = new Date(dayKey + 'T00:00:00');
+    // walk backwards day by day from today
+    for(let i=0;i<365;i++){
+      const y = cursor.getFullYear();
+      const m = String(cursor.getMonth()+1).padStart(2,'0');
+      const d = String(cursor.getDate()).padStart(2,'0');
+      const k = `day:${y}-${m}-${d}`;
+      if(!keys.includes(k)) break;
+      try{
+        const res = await window.storage.get(k, false);
+        if(!res || !res.value) break;
+        const parsed = JSON.parse(res.value);
+        const allDone = MEALS.every(meal => parsed[meal.id] && parsed[meal.id].done);
+        if(!allDone) break;
+        streak++;
+      } catch(e){ break; }
+      cursor.setDate(cursor.getDate()-1);
+    }
+    return streak;
+  } catch(e){
+    return 0;
+  }
+}
+
+function renderMeals(){
+  const container = document.getElementById('mealsList');
+  container.innerHTML = '';
+  MEALS.forEach(meal => {
+    const s = state[meal.id];
+    const el = document.createElement('div');
+    el.className = 'meal' + (s.done ? ' done' : '');
+    el.dataset.id = meal.id;
+
+    const swapHtml = meal.swaps.map((swap, si) => `
+      <div class="swap-group">
+        <div class="swap-label">${swap.label}</div>
+        <select class="swap-select" data-swap-index="${si}">
+          ${swap.options.map((opt, oi) => `<option value="${oi}" ${s.swaps[si]===oi?'selected':''}>${opt}</option>`).join('')}
+        </select>
+      </div>
+    `).join('');
+
+    el.innerHTML = `
+      <div class="meal-head" role="button" tabindex="0">
+        <div class="check" data-role="check" aria-label="Mark ${meal.title} eaten">
+          <svg viewBox="0 0 20 20" fill="none"><path d="M4 10.5L8 14.5L16 5.5" stroke="#14171a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </div>
+        <div class="meal-title-wrap">
+          <div class="meal-eyebrow">${meal.icon} ${meal.eyebrow}</div>
+          <div class="meal-title">${meal.title}</div>
+        </div>
+        <div class="meal-macro"><b>${meal.calories}</b> kcal · <b>${meal.protein}g</b> protein</div>
+        <svg class="chevron" viewBox="0 0 20 20" fill="none"><path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      <div class="meal-body">
+        <div class="meal-body-inner">
+          <ul class="base-items">${meal.base.map(b=>`<li>${b}</li>`).join('')}</ul>
+          ${swapHtml}
+        </div>
+      </div>
+    `;
+
+    // toggle open/close on title area (not the checkbox)
+    const head = el.querySelector('.meal-head');
+    head.addEventListener('click', (e) => {
+      if(e.target.closest('[data-role="check"]')) return;
+      el.classList.toggle('open');
+    });
+    head.addEventListener('keydown', (e) => {
+      if(e.key === 'Enter' || e.key === ' '){
+        e.preventDefault();
+        el.classList.toggle('open');
+      }
+    });
+
+    // checkbox toggle
+    el.querySelector('[data-role="check"]').addEventListener('click', async (e) => {
+      e.stopPropagation();
+      s.done = !s.done;
+      el.classList.toggle('done', s.done);
+      await saveState();
+      updateScoreboard();
+      if(s.done) showToast(`${meal.title} logged`);
+    });
+
+    // swap selects
+    el.querySelectorAll('.swap-select').forEach(sel => {
+      sel.addEventListener('change', async (e) => {
+        const si = parseInt(e.target.dataset.swapIndex, 10);
+        s.swaps[si] = parseInt(e.target.value, 10);
+        await saveState();
+      });
+    });
+
+    container.appendChild(el);
+  });
+}
+
+function updateScoreboard(){
+  let cal = 0, pro = 0;
+  MEALS.forEach(m => {
+    if(state[m.id].done){ cal += m.calories; pro += m.protein; }
+  });
+  document.getElementById('calVal').textContent = `${cal} / ${TARGET_CAL}`;
+  document.getElementById('proVal').textContent = `${pro} / ${TARGET_PRO}g`;
+  document.getElementById('calBar').style.width = Math.min(100, (cal/TARGET_CAL)*100) + '%';
+  document.getElementById('proBar').style.width = Math.min(100, (pro/TARGET_PRO)*100) + '%';
+}
+
+async function refreshStreak(){
+  const streak = await computeStreak();
+  document.getElementById('streakBadge').textContent = `🔥 ${streak} day streak`;
+}
+
+document.getElementById('resetBtn').addEventListener('click', async () => {
+  if(!confirm("Reset today's log? This clears all checks and swap choices for today.")) return;
+  state = defaultState();
+  await saveState();
+  renderMeals();
+  updateScoreboard();
+  showToast('Today reset');
+  refreshStreak();
+});
+
+async function init(){
+  document.getElementById('dateSub').textContent = fmtDateLabel(dayKey);
+  await loadState();
+  renderMeals();
+  updateScoreboard();
+  refreshStreak();
+}
+
+init();
+</script>
+</body>
+</html>
